@@ -1,0 +1,10 @@
+[package]
+name = "stack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.0.23", features = ["derive", "env"] }
+clap-verbosity-flag = "2.0.0"
+flexi_logger = { version = "0.24.1", features = ["colors"] }
+log = "0.4.17"
