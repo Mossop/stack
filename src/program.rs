@@ -26,9 +26,24 @@ pub struct Program {
 
 #[derive(Args, Debug)]
 pub struct Globals {
-    /// A comma separated list of stacks to apply the command to. Applies to all
-    /// stacks if not present.
-    pub stacks: Option<String>,
+    /// A comma separated list of stacks to apply the command to. If not present
+    /// or `*` is given then all stacks are used.
+    stacks: Option<String>,
+}
+
+impl Globals {
+    pub fn stacks(&self) -> Vec<&str> {
+        match self.stacks {
+            Some(ref s) => {
+                if s.is_empty() || s == "*" {
+                    Vec::new()
+                } else {
+                    s.split(',').collect()
+                }
+            }
+            None => Vec::new(),
+        }
+    }
 }
 
 #[derive(Subcommand, Debug)]
@@ -143,7 +158,7 @@ pub enum Commands {
         /// Arguments to pass through to docker compose
         args: Vec<String>,
     },
-    /// Create and start containers
+    /// Create and start containers detached
     Up {
         /// Arguments to pass through to docker compose
         args: Vec<String>,
@@ -184,5 +199,26 @@ impl Commands {
                 normal_order_run("up", globals, config, &args)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Program;
+    use clap::Parser;
+
+    #[test]
+    fn stacks() {
+        let program = Program::parse_from(["stack", "up"]);
+        assert_eq!(program.file, None);
+        assert_eq!(program.globals.stacks(), Vec::<&str>::new());
+
+        let program = Program::parse_from(["stack", "-f", "foo", "*", "down"]);
+        assert_eq!(program.file, Some("foo".to_string()));
+        assert_eq!(program.globals.stacks(), Vec::<&str>::new());
+
+        let program = Program::parse_from(["stack", "bar", "up"]);
+        assert_eq!(program.file, None);
+        assert_eq!(program.globals.stacks(), vec!["bar"]);
     }
 }

@@ -2,14 +2,14 @@ mod commands;
 mod config;
 mod program;
 
-use std::{env::current_dir, path::PathBuf};
+use std::{env::current_dir, fs::File, path::PathBuf};
 
 use clap::Parser;
 use flexi_logger::{LevelFilter, LogSpecBuilder, Logger};
 
 use program::Program;
 
-use crate::config::Config;
+use config::Config;
 
 fn stacks_file(file: &Option<String>) -> Result<PathBuf, String> {
     let mut dir = current_dir().map_err(|e| format!("Current directory is invalid: {}", e))?;
@@ -64,7 +64,10 @@ fn run() -> Result<(), String> {
 
     let stacks_file = stacks_file(&args.file)?;
     log::debug!("Loading stacks from {}", stacks_file.display());
-    let config = Config {};
+    let f = File::open(&stacks_file)
+        .map_err(|e| format!("Failed to open file {}: {}", stacks_file.display(), e))?;
+
+    let config = Config::from_reader(f)?;
 
     args.command.run(&args.globals, &config)
 }

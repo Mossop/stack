@@ -8,3 +8,6 @@ clap = { version = "4.0.23", features = ["derive", "env"] }
 clap-verbosity-flag = "2.0.0"
 flexi_logger = { version = "0.24.1", features = ["colors"] }
 log = "0.4.17"
+serde = { version = "1.0.147", features = ["derive"] }
+serde_with = "2.0.1"
+serde_yaml = "0.9.14"

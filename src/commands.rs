@@ -6,11 +6,13 @@ pub fn normal_order_run(
     config: &Config,
     args: &Vec<String>,
 ) -> Result<(), String> {
+    let stacks = globals.stacks();
+
     log::trace!(
         "Executing command `{}` in normal order against {} stacks with arguments {:?}",
         command,
-        if let Some(ref s) = globals.stacks {
-            format!("`{}`", s)
+        if !stacks.is_empty() {
+            format!("`{}`", stacks.join(","))
         } else {
             "all".to_string()
         },
@@ -25,11 +27,13 @@ pub fn reverse_order_run(
     config: &Config,
     args: &Vec<String>,
 ) -> Result<(), String> {
+    let stacks = globals.stacks();
+
     log::trace!(
         "Executing command `{}` in reverse order against stacks {:?} with arguments {:?}",
         command,
-        if let Some(ref s) = globals.stacks {
-            format!("`{}`", s)
+        if !stacks.is_empty() {
+            format!("`{}`", stacks.join(","))
         } else {
             "all".to_string()
         },
