@@ -1,5 +1,6 @@
 [package]
 name = "stack"
+description = "A simple command for running inter-dependent docker compose projects"
 version = "0.1.0"
 edition = "2021"
 
