@@ -51,111 +51,133 @@ pub enum Commands {
     /// Build or rebuild services
     Build {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Copy files/folders between a service container and the local filesystem
     Cp {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Creates containers for a service.
     Create {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Stop and remove containers, networks
     Down {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Receive real time events from containers.
     Events {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Execute a command in a running container.
     Exec {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// List images used by the created containers
     Images {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Force stop service containers.
     Kill {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// View output from containers
     Logs {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Pause services
     Pause {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Print the public port for a port binding.
     Port {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// List containers
     Ps {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Pull service images
     Pull {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Push service images
     Push {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Restart service containers
     Restart {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Removes stopped service containers
     Rm {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Run a one-off command on a service.
     Run {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Start services
     Start {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Stop services
     Stop {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Display the running processes
     Top {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Unpause services
     Unpause {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Create and start containers detached
     Up {
         /// Arguments to pass through to docker compose
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
 }
