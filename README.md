@@ -1,5 +1,7 @@
 # stack
 
+[![Tests](https://github.com/Mossop/stack/actions/workflows/test.yml/badge.svg)](https://github.com/Mossop/stack/actions/workflows/test.yml)
+
 Stack is a tool for managing docker compose projects. It supports running
 commands against multiple projects and allows defining environment variables for
 each in order to provide a configuration of sorts.
