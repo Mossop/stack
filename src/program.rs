@@ -18,20 +18,20 @@ pub struct Program {
     pub verbose: Verbosity<InfoLevel>,
 
     #[command(flatten)]
-    pub globals: Globals,
+    pub globals: GlobalArguments,
 
     #[command(subcommand)]
     pub command: Commands,
 }
 
 #[derive(Args, Debug)]
-pub struct Globals {
+pub struct GlobalArguments {
     /// A comma separated list of stacks to apply the command to. If not present
     /// or `*` is given then all stacks are used.
     stacks: Option<String>,
 }
 
-impl Globals {
+impl GlobalArguments {
     pub fn stacks(&self) -> Vec<&str> {
         match self.stacks {
             Some(ref s) => {
@@ -90,11 +90,6 @@ pub enum Commands {
     },
     /// View output from containers
     Logs {
-        /// Arguments to pass through to docker compose
-        args: Vec<String>,
-    },
-    /// List running compose projects
-    Ls {
         /// Arguments to pass through to docker compose
         args: Vec<String>,
     },
@@ -166,7 +161,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn run(&self, globals: &Globals, config: &Config) -> Result<(), String> {
+    pub fn run(&self, globals: &GlobalArguments, config: &Config) -> Result<(), String> {
         match self {
             Commands::Build { args } => normal_order_run("build", globals, config, args),
             Commands::Cp { args } => single_stack("cp", globals, config, args),
@@ -177,7 +172,6 @@ impl Commands {
             Commands::Images { args } => normal_order_run("images", globals, config, args),
             Commands::Kill { args } => reverse_order_run("kill", globals, config, args),
             Commands::Logs { args } => single_stack("logs", globals, config, args),
-            Commands::Ls { args } => normal_order_run("ls", globals, config, args),
             Commands::Pause { args } => reverse_order_run("pause", globals, config, args),
             Commands::Port { args } => single_stack("port", globals, config, args),
             Commands::Ps { args } => normal_order_run("ps", globals, config, args),
@@ -191,7 +185,7 @@ impl Commands {
             Commands::Run { args } => single_stack("run", globals, config, args),
             Commands::Start { args } => single_stack("start", globals, config, args),
             Commands::Stop { args } => single_stack("stop", globals, config, args),
-            Commands::Top { args } => single_stack("top", globals, config, args),
+            Commands::Top { args } => normal_order_run("top", globals, config, args),
             Commands::Unpause { args } => normal_order_run("unpause", globals, config, args),
             Commands::Up { args } => {
                 let mut args = args.clone();

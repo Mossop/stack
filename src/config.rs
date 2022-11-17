@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 use serde::de::{self, Error, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -63,6 +64,16 @@ pub struct Stack {
     pub environment: HashMap<String, String>,
 }
 
+impl Stack {
+    pub fn directory(&self, base: &Path) -> PathBuf {
+        if let Some(ref dir) = self.directory {
+            base.join(dir)
+        } else {
+            base.join(&self.key)
+        }
+    }
+}
+
 fn default_command() -> Vec<String> {
     vec!["docker".to_string(), "compose".to_string()]
 }
@@ -121,6 +132,8 @@ where
 #[serde_as]
 #[derive(Deserialize)]
 pub struct Config {
+    #[serde(skip)]
+    pub base_dir: PathBuf,
     #[serde(default = "default_command")]
     #[serde_as(as = "StringWithSeparator::<SpaceSeparator, String>")]
     pub command: Vec<String>,
@@ -142,8 +155,10 @@ fn add_deps(stacks: &BTreeMap<String, Stack>, stack: &str, keys: &mut BTreeSet<S
 }
 
 impl Config {
-    pub fn from_reader<R: Read>(reader: R) -> Result<Self, String> {
-        serde_yaml::from_reader(reader).map_err(|e| e.to_string())
+    pub fn from_reader<R: Read>(base_dir: &Path, reader: R) -> Result<Self, String> {
+        let mut config: Config = serde_yaml::from_reader(reader).map_err(|e| e.to_string())?;
+        config.base_dir = base_dir.to_owned();
+        Ok(config)
     }
 
     pub fn stacks<I, S>(&self, list: I, with_dependencies: bool) -> Result<Vec<&Stack>, String>
@@ -209,9 +224,10 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::{Config, Stack};
+    use std::path::PathBuf;
 
     fn from_str(s: &str) -> Result<Config, String> {
-        Config::from_reader(s.as_bytes())
+        Config::from_reader(&PathBuf::default(), s.as_bytes())
     }
 
     fn keys(stacks: Vec<&Stack>) -> Vec<String> {

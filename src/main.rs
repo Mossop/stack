@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod exec;
 mod program;
 
 use std::{env::current_dir, fs::File, path::PathBuf};
@@ -18,6 +19,9 @@ fn stacks_file(file: &Option<String>) -> Result<PathBuf, String> {
         Some(path) => {
             let mut target = dir;
             target.push(path);
+            target = target
+                .canonicalize()
+                .map_err(|e| format!("Invalid path: {}", e))?;
 
             if target.is_file() {
                 Ok(target)
@@ -33,7 +37,9 @@ fn stacks_file(file: &Option<String>) -> Result<PathBuf, String> {
                 let mut target = dir.clone();
                 target.push("stacks.yml");
                 if target.is_file() {
-                    return Ok(target);
+                    return target
+                        .canonicalize()
+                        .map_err(|e| format!("Invalid path: {}", e));
                 }
 
                 dir = match dir.parent() {
@@ -67,7 +73,7 @@ fn run() -> Result<(), String> {
     let f = File::open(&stacks_file)
         .map_err(|e| format!("Failed to open file {}: {}", stacks_file.display(), e))?;
 
-    let config = Config::from_reader(f)?;
+    let config = Config::from_reader(stacks_file.parent().unwrap(), f)?;
 
     args.command.run(&args.globals, &config)
 }
