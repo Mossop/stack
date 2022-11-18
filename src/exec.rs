@@ -26,11 +26,15 @@ impl ExecOptions {
 
     pub fn with_stack(&self, stack: &Stack) -> Self {
         let mut options = self.clone();
+        let project_directory = stack.directory(&self.working_dir);
 
-        options
-            .global_args
-            .extend(["-p".to_string(), stack.name.clone()]);
-        options.working_dir = stack.directory(&self.working_dir);
+        options.global_args.extend([
+            "-p".to_string(),
+            stack.name.clone(),
+            "--project-directory".to_string(),
+            project_directory.to_str().unwrap().to_string(),
+        ]);
+        options.working_dir = project_directory;
         options.environment.extend(
             stack
                 .environment

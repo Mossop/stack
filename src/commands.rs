@@ -10,10 +10,9 @@ fn exec(exec_options: &ExecOptions, stack: &Stack) -> Result<(), String> {
     let exec_options = exec_options.with_stack(stack);
 
     log::debug!(
-        "Executing `{} {}` in {}",
+        "Executing `{} {}`",
         exec_options.program(),
-        exec_options.args().join(" "),
-        exec_options.working_dir.display()
+        exec_options.args().join(" ")
     );
 
     let mut command = Command::new(exec_options.program());
@@ -33,7 +32,12 @@ fn exec(exec_options: &ExecOptions, stack: &Stack) -> Result<(), String> {
     if status.success() {
         Ok(())
     } else {
-        Err(format!("Error running docker compose: {}", status))
+        Err(format!(
+            "Error running command `{} {}`: {}",
+            exec_options.program(),
+            exec_options.args().join(" "),
+            status
+        ))
     }
 }
 
