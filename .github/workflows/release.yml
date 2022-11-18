@@ -1,10 +1,12 @@
+name: Release Builds
+
 on:
   workflow_dispatch: {}
 
 jobs:
   release:
     name: Release ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
 
     strategy:
       fail-fast: false
