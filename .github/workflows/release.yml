@@ -4,12 +4,18 @@ on:
 jobs:
   release:
     name: Release ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-gnu, x86_64-apple-darwin, aarch64-apple-darwin]
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - runner: macos-12
+            target: x86_64-apple-darwin
+          - runner: macos-12
+            target: aarch64-apple-darwin
 
     steps:
       - name: Checkout
@@ -35,6 +41,7 @@ jobs:
 
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
-          args: --target ${{ matrix.target }}
+          args: --release --target ${{ matrix.target }}
+
+      - run: file target/release/stack
