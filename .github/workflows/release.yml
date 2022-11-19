@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  build:
     name: Release ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
 
@@ -16,10 +16,13 @@ jobs:
         include:
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            asset_name: stack-linux.tar.bz2
+            artifact: stack-linux.tar.bz2
           - runner: macos-12
             target: x86_64-apple-darwin
-            asset_name: stack-mac.tar.bz2
+            artifact: stack-mac-x86_64.tar.bz2
+          - runner: macos-12
+            target: aarch64-apple-darwin
+            artifact: stack-mac-aarch64.tar.bz2
 
     steps:
       - name: Checkout
@@ -50,12 +53,60 @@ jobs:
           args: --release --target ${{ matrix.target }}
 
       - name: Compress
-        run: tar -cjf ${{ matrix.asset_name }} -C target/${{ matrix.target }}/release stack
+        run: tar -cjf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release stack
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  combine:
+    needs: build
+    runs-on: macos-12
+
+    steps:
+      - name: Download x86_64
+        uses: actions/download-artifact@v3
+
+        with:
+          name: stack-mac-x86_64.tar.bz2
+
+      - name: Download arm64
+        uses: actions/download-artifact@v3
+
+        with:
+          name: stack-mac-aarch64.tar.bz2
+
+      - name: Build universal
+        run: tar -xjf stack-mac-x86_64.tar.bz2 && mv stack stack-x86_64 && tar -xjf stack-mac-aarch64.tar.bz2 && mv stack stack-aarch64 && lipo stack-x86_64 stack-aarch64 -create -output stack && tar -cjf stack-mac.tar.bz2 stack
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+
+        with:
+          name: stack-mac.tar.bz2
+          path: stack-mac.tar.bz2
+
+  release:
+    needs: [build, combine]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+
+        with:
+          path: artifacts
+
+      - name: Skip intermediates
+        run: rm -rf artifacts/stack-mac-*
 
       - name: Upload binaries
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ matrix.asset_name }}
-          asset_name: ${{ matrix.asset_name }}
+          file_glob: true
+          file: artifacts/*/*.tar.bz2
           tag: ${{ github.ref }}
