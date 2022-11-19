@@ -20,6 +20,7 @@ impl ExecOptions {
             command: command.to_owned(),
             working_dir: config.base_dir.clone(),
             args: args.iter().map(|s| s.as_ref().to_string()).collect(),
+            environment: config.environment.clone(),
             ..Default::default()
         }
     }

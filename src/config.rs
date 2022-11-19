@@ -139,6 +139,8 @@ pub struct Config {
     pub command: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_stacks")]
     pub stacks: BTreeMap<String, Stack>,
+    #[serde(default)]
+    pub environment: HashMap<String, String>,
 }
 
 fn add_deps(stacks: &BTreeMap<String, Stack>, stack: &str, keys: &mut BTreeSet<String>) {
