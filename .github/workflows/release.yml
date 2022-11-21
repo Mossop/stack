@@ -16,13 +16,13 @@ jobs:
         include:
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact: stack-linux.tar.bz2
+            artifact: stacks-linux.tar.bz2
           - runner: macos-12
             target: x86_64-apple-darwin
-            artifact: stack-mac-x86_64.tar.bz2
+            artifact: stacks-mac-x86_64.tar.bz2
           - runner: macos-12
             target: aarch64-apple-darwin
-            artifact: stack-mac-aarch64.tar.bz2
+            artifact: stacks-mac-aarch64.tar.bz2
 
     steps:
       - name: Checkout
@@ -53,7 +53,7 @@ jobs:
           args: --release --target ${{ matrix.target }}
 
       - name: Compress
-        run: tar -cjf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release stack
+        run: tar -cjf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release stacks
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v3
@@ -71,23 +71,23 @@ jobs:
         uses: actions/download-artifact@v3
 
         with:
-          name: stack-mac-x86_64.tar.bz2
+          name: stacks-mac-x86_64.tar.bz2
 
       - name: Download arm64
         uses: actions/download-artifact@v3
 
         with:
-          name: stack-mac-aarch64.tar.bz2
+          name: stacks-mac-aarch64.tar.bz2
 
       - name: Build universal
-        run: tar -xjf stack-mac-x86_64.tar.bz2 && mv stack stack-x86_64 && tar -xjf stack-mac-aarch64.tar.bz2 && mv stack stack-aarch64 && lipo stack-x86_64 stack-aarch64 -create -output stack && tar -cjf stack-mac.tar.bz2 stack
+        run: tar -xjf stacks-mac-x86_64.tar.bz2 && mv stacks stacks-x86_64 && tar -xjf stacks-mac-aarch64.tar.bz2 && mv stacks stacks-aarch64 && lipo stacks-x86_64 stacks-aarch64 -create -output stacks && tar -cjf stacks-mac.tar.bz2 stacks
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v3
 
         with:
-          name: stack-mac.tar.bz2
-          path: stack-mac.tar.bz2
+          name: stacks-mac.tar.bz2
+          path: stacks-mac.tar.bz2
 
   release:
     needs: [build, combine]
@@ -101,7 +101,7 @@ jobs:
           path: artifacts
 
       - name: Skip intermediates
-        run: rm -rf artifacts/stack-mac-*
+        run: rm -rf artifacts/stacks-mac-*
 
       - name: Upload binaries
         uses: svenstaro/upload-release-action@v2

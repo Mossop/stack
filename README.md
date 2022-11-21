@@ -1,15 +1,15 @@
-# stack
+# stacks
 
-[![Tests](https://github.com/Mossop/stack/actions/workflows/test.yml/badge.svg)](https://github.com/Mossop/stack/actions/workflows/test.yml)
+[![Tests](https://github.com/Mossop/stacks/actions/workflows/test.yml/badge.svg)](https://github.com/Mossop/stacks/actions/workflows/test.yml)
 
-Stack is a tool for managing docker compose projects. It supports running
+Stacks is a tool for managing docker compose projects. It supports running
 commands against multiple projects and allows defining environment variables for
 each in order to provide a configuration of sorts.
 
-Stack also supports the notion of cross-project dependencies. In an ideal world
+Stacks also supports the notion of cross-project dependencies. In an ideal world
 each project is a self-contained unit not depending on any other project. In
 reality projects can reference and depend on networks and containers defined in
-other projects. Stack lets you define those dependencies such that when
+other projects. Stacks lets you define those dependencies such that when
 attempting to bring up one project it ensures that the other projects that it
 requires are up.
 
@@ -17,7 +17,7 @@ requires are up.
 
 The general format for commands is:
 ```
-stack <options> <stacks> [command] <args>
+stacks <options> <stacks> [command] <args>
 ```
 * `stacks` is a comma separated list of stacks to apply the command to. If not
 present then the command will be applied to all stacks.
@@ -39,7 +39,7 @@ stacks. Equivalent to calling `docker compose pull` and then
 
 ## Configuration
 
-Stack must be configured with a simple yaml file, by default it walks the
+Stacks must be configured with a simple yaml file, by default it walks the
 working directory and its parents looking for a `stacks.yml` file though that
 can be overridden with the `-f` argument or the `STACKS_FILE` environment
 variable.
@@ -65,10 +65,10 @@ stack:
 
 * `name`: The name to use for the project in docker, defaults to the key in the
 config file.
-* `directory`: The path to the compose project relative to the stack config,
+* `directory`: The path to the compose project relative to the stacks config,
 defaults to the key in the config file.
 * `file`: The path (or list of paths) to the compose project relative to the
 stack config, defaults the same logic that docker compose uses.
 * `depends_on`: A list of the stacks that this stack depends on.
-* `environment`: a dictionary to define environment variables. This allows a certain
-amount of customisation of the stack.
+* `environment`: a dictionary to define environment variables. This allows a
+certain amount of customisation of the stack.

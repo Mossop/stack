@@ -1,5 +1,5 @@
 [package]
-name = "stack"
+name = "stacks"
 description = "A simple command for running inter-dependent docker compose projects"
 version = "0.2.0"
 edition = "2021"
