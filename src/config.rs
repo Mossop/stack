@@ -16,7 +16,7 @@ where
         type Value = Option<Vec<String>>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("a string or a list of strings")
+            formatter.write_str("a string or a non-empty list of strings")
         }
 
         fn visit_seq<S>(self, mut seq: S) -> Result<Option<Vec<String>>, S::Error>
@@ -27,7 +27,12 @@ where
             while let Some(s) = seq.next_element()? {
                 list.push(s);
             }
-            Ok(Some(list))
+
+            if list.is_empty() {
+                Err(S::Error::invalid_length(0, &self))
+            } else {
+                Ok(Some(list))
+            }
         }
 
         fn visit_str<E>(self, s: &str) -> Result<Option<Vec<String>>, E>

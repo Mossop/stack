@@ -35,7 +35,18 @@ impl ExecOptions {
             "--project-directory".to_string(),
             project_directory.to_str().unwrap().to_string(),
         ]);
+
+        if let Some(ref list) = stack.file {
+            for file in list {
+                options.global_args.extend([
+                    "-f".to_string(),
+                    self.working_dir.join(file).to_str().unwrap().to_string(),
+                ])
+            }
+        }
+
         options.working_dir = project_directory;
+
         options.environment.extend(
             stack
                 .environment
