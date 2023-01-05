@@ -1,10 +1,9 @@
+use std::collections::HashSet;
+
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::{InfoLevel, Verbosity};
 
-use crate::{
-    commands::{normal_order_run, reverse_order_run, single_stack},
-    config::Config,
-};
+use crate::{commands::run_against_stacks, config::Config};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, subcommand_precedence_over_arg(true))]
@@ -182,37 +181,107 @@ pub enum Commands {
     },
 }
 
+fn reverse<T>(stacks: Vec<T>) -> Vec<T> {
+    stacks.into_iter().rev().collect()
+}
+
 impl Commands {
     pub fn run(&self, globals: &GlobalArguments, config: &Config) -> Result<(), String> {
         match self {
-            Commands::Build { args } => normal_order_run("build", globals, config, args),
-            Commands::Cp { args } => single_stack("cp", globals, config, args),
-            Commands::Create { args } => normal_order_run("create", globals, config, args),
-            Commands::Down { args } => reverse_order_run("down", globals, config, args),
-            Commands::Events { args } => single_stack("events", globals, config, args),
-            Commands::Exec { args } => single_stack("exec", globals, config, args),
-            Commands::Images { args } => normal_order_run("images", globals, config, args),
-            Commands::Kill { args } => reverse_order_run("kill", globals, config, args),
-            Commands::Logs { args } => single_stack("logs", globals, config, args),
-            Commands::Pause { args } => reverse_order_run("pause", globals, config, args),
-            Commands::Port { args } => single_stack("port", globals, config, args),
-            Commands::Ps { args } => normal_order_run("ps", globals, config, args),
-            Commands::Pull { args } => normal_order_run("pull", globals, config, args),
-            Commands::Push { args } => normal_order_run("push", globals, config, args),
-            Commands::Restart { args } => {
-                reverse_order_run("down", globals, config, args)?;
-                normal_order_run("up", globals, config, &vec!["--wait".to_string()])
+            Commands::Build { args } => {
+                let stacks = config.stacks(globals.stacks())?;
+                run_against_stacks("build", config, &stacks, args)
             }
-            Commands::Rm { args } => reverse_order_run("rm", globals, config, args),
-            Commands::Run { args } => single_stack("run", globals, config, args),
-            Commands::Start { args } => single_stack("start", globals, config, args),
-            Commands::Stop { args } => single_stack("stop", globals, config, args),
-            Commands::Top { args } => normal_order_run("top", globals, config, args),
-            Commands::Unpause { args } => normal_order_run("unpause", globals, config, args),
+            Commands::Cp { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("cp", config, &stacks, args)
+            }
+            Commands::Create { args } => {
+                let stacks = config.stacks_with_dependencies(globals.stacks())?;
+                run_against_stacks("create", config, &stacks, args)
+            }
+            Commands::Down { args } => {
+                let stacks = reverse(config.stacks_with_dependants(globals.stacks())?);
+                run_against_stacks("down", config, &stacks, args)
+            }
+            Commands::Events { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("events", config, &stacks, args)
+            }
+            Commands::Exec { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("exec", config, &stacks, args)
+            }
+            Commands::Images { args } => {
+                let stacks = config.stacks(globals.stacks())?;
+                run_against_stacks("images", config, &stacks, args)
+            }
+            Commands::Kill { args } => {
+                let stacks = reverse(config.stacks_with_dependants(globals.stacks())?);
+                run_against_stacks("kill", config, &stacks, args)
+            }
+            Commands::Logs { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("logs", config, &stacks, args)
+            }
+            Commands::Pause { args } => {
+                let stacks = reverse(config.stacks_with_dependants(globals.stacks())?);
+                run_against_stacks("pause", config, &stacks, args)
+            }
+            Commands::Port { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("port", config, &stacks, args)
+            }
+            Commands::Ps { args } => {
+                let stacks = config.stacks(globals.stacks())?;
+                run_against_stacks("ps", config, &stacks, args)
+            }
+            Commands::Pull { args } => {
+                let stacks = config.stacks(globals.stacks())?;
+                run_against_stacks("pull", config, &stacks, args)
+            }
+            Commands::Push { args } => {
+                let stacks = config.stacks(globals.stacks())?;
+                run_against_stacks("push", config, &stacks, args)
+            }
+            Commands::Restart { args } => {
+                let stacks = reverse(config.stacks_with_dependants(globals.stacks())?);
+                run_against_stacks("down", config, &stacks, args)?;
+                let stacks = reverse(stacks);
+                let mut up_stacks = config.stacks_with_dependencies(globals.stacks())?;
+                let first_keys: HashSet<String> = up_stacks.iter().map(|s| s.key.clone()).collect();
+                up_stacks.extend(stacks.into_iter().filter(|s| !first_keys.contains(&s.key)));
+                run_against_stacks("up", config, &up_stacks, &vec!["--wait".to_string()])
+            }
+            Commands::Rm { args } => {
+                let stacks = reverse(config.stacks_with_dependants(globals.stacks())?);
+                run_against_stacks("rm", config, &stacks, args)
+            }
+            Commands::Run { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("run", config, &stacks, args)
+            }
+            Commands::Start { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("start", config, &stacks, args)
+            }
+            Commands::Stop { args } => {
+                let stacks = config.stack(globals.stacks())?;
+                run_against_stacks("stop", config, &stacks, args)
+            }
+            Commands::Top { args } => {
+                let stacks = config.stacks(globals.stacks())?;
+                run_against_stacks("top", config, &stacks, args)
+            }
+            Commands::Unpause { args } => {
+                let stacks = config.stacks_with_dependencies(globals.stacks())?;
+                run_against_stacks("unpause", config, &stacks, args)
+            }
             Commands::Up { args } => {
                 let mut args = args.clone();
                 args.insert(0, "--wait".to_string());
-                normal_order_run("up", globals, config, &args)
+                let stacks = config.stacks_with_dependencies(globals.stacks())?;
+                run_against_stacks("up", config, &stacks, &args)
             }
         }
     }

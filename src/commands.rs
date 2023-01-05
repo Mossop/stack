@@ -1,7 +1,6 @@
 use crate::{
     config::{Config, Stack},
     exec::ExecOptions,
-    program::GlobalArguments,
 };
 
 use std::process::Command;
@@ -41,87 +40,27 @@ fn exec(exec_options: &ExecOptions, stack: &Stack) -> Result<(), String> {
     }
 }
 
-pub fn normal_order_run(
+pub fn run_against_stacks(
     command: &str,
-    globals: &GlobalArguments,
     config: &Config,
+    stacks: &Vec<&Stack>,
     args: &Vec<String>,
 ) -> Result<(), String> {
-    let stacks = globals.stacks();
-
     log::trace!(
-        "Executing command `{}` in normal order against {} stacks with arguments {:?}",
+        "Executing command `{}` against {} stacks with arguments {:?}",
         command,
-        if !stacks.is_empty() {
-            format!("`{}`", stacks.join(","))
-        } else {
-            "all".to_string()
-        },
+        stacks
+            .iter()
+            .map(|s| s.name.clone())
+            .collect::<Vec<String>>()
+            .join(","),
         args
     );
 
     let exec_options = ExecOptions::new(config, command, args);
-    let stacks = config.stacks(stacks, true)?;
     for stack in stacks {
         exec(&exec_options, stack)?;
     }
 
     Ok(())
-}
-
-pub fn reverse_order_run(
-    command: &str,
-    globals: &GlobalArguments,
-    config: &Config,
-    args: &Vec<String>,
-) -> Result<(), String> {
-    let stacks = globals.stacks();
-
-    log::trace!(
-        "Executing command `{}` in reverse order against stacks {} with arguments {:?}",
-        command,
-        if !stacks.is_empty() {
-            format!("`{}`", stacks.join(","))
-        } else {
-            "all".to_string()
-        },
-        args
-    );
-
-    let exec_options = ExecOptions::new(config, command, args);
-    let mut stacks = config.stacks(stacks, true)?;
-    stacks.reverse();
-    for stack in stacks {
-        exec(&exec_options, stack)?;
-    }
-
-    Ok(())
-}
-
-pub fn single_stack(
-    command: &str,
-    globals: &GlobalArguments,
-    config: &Config,
-    args: &Vec<String>,
-) -> Result<(), String> {
-    let stacks = config.stacks(globals.stacks(), false)?;
-    if stacks.len() != 1 {
-        return Err(format!(
-            "Command {} can only operate on one stack but {} were provided.",
-            command,
-            stacks.len()
-        ));
-    }
-
-    let stack = stacks.get(0).unwrap();
-
-    log::trace!(
-        "Executing command `{}` against {} with arguments {:?}",
-        command,
-        stack.key,
-        args
-    );
-
-    let exec_options = ExecOptions::new(config, command, args);
-    exec(&exec_options, stack)
 }

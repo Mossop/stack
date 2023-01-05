@@ -54,7 +54,7 @@ where
 }
 
 #[serde_as]
-#[derive(Deserialize)]
+#[derive(Deserialize, Eq)]
 pub struct Stack {
     #[serde(skip)]
     pub key: String,
@@ -63,8 +63,10 @@ pub struct Stack {
     pub directory: Option<String>,
     #[serde(default, deserialize_with = "deserialize_file")]
     pub file: Option<Vec<String>>,
-    #[serde(default)]
-    pub depends_on: Vec<String>,
+    #[serde(default, rename = "depends_on")]
+    pub dependencies: BTreeSet<String>,
+    #[serde(skip)]
+    pub dependants: BTreeSet<String>,
     #[serde(default)]
     pub environment: HashMap<String, String>,
 }
@@ -79,6 +81,12 @@ impl Stack {
     }
 }
 
+impl PartialEq for Stack {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+
 fn default_command() -> Vec<String> {
     vec!["docker".to_string(), "compose".to_string()]
 }
@@ -90,7 +98,7 @@ fn check_dependencies(
 ) -> Result<(), String> {
     seen.insert(stack.key.clone());
 
-    for dep in stack.depends_on.iter() {
+    for dep in stack.dependencies.iter() {
         if seen.contains(dep) {
             return Err(format!(
                 "invalid dependency cycle: \"{}\" cannot depend on \"{}\"",
@@ -126,9 +134,17 @@ where
         }
     }
 
+    let keys: Vec<String> = stacks.keys().cloned().collect();
     let mut seen = HashSet::new();
-    for stack in stacks.values() {
+    for key in keys {
+        let stack = stacks.get(&key).unwrap();
         check_dependencies(stack, &stacks, &mut seen).map_err(D::Error::custom)?;
+
+        let dependencies = stack.dependencies.clone();
+        for dep in dependencies {
+            let stack = stacks.get_mut(&dep).unwrap();
+            stack.dependants.insert(key.clone());
+        }
     }
 
     Ok(stacks)
@@ -148,33 +164,39 @@ pub struct Config {
     pub environment: HashMap<String, String>,
 }
 
-fn add_deps(stacks: &BTreeMap<String, Stack>, stack: &str, keys: &mut BTreeSet<String>) {
+fn add_dependencies(stacks: &BTreeMap<String, Stack>, stack: &str, keys: &mut BTreeSet<String>) {
     let stack = stacks.get(stack).unwrap();
 
-    for dep in stack.depends_on.iter() {
+    for dep in stack.dependencies.iter() {
         if keys.contains(dep) {
             continue;
         }
         keys.insert(dep.to_owned());
 
-        add_deps(stacks, dep, keys);
+        add_dependencies(stacks, dep, keys);
+    }
+}
+
+fn add_dependants(stacks: &BTreeMap<String, Stack>, stack: &str, keys: &mut BTreeSet<String>) {
+    let stack = stacks.get(stack).unwrap();
+
+    for dep in stack.dependants.iter() {
+        if keys.contains(dep) {
+            continue;
+        }
+        keys.insert(dep.to_owned());
+
+        add_dependants(stacks, dep, keys);
     }
 }
 
 impl Config {
-    pub fn from_reader<R: Read>(base_dir: &Path, reader: R) -> Result<Self, String> {
-        let mut config: Config = serde_yaml::from_reader(reader).map_err(|e| e.to_string())?;
-        config.base_dir = base_dir.to_owned();
-        Ok(config)
-    }
-
-    pub fn stacks<I, S>(&self, list: I, with_dependencies: bool) -> Result<Vec<&Stack>, String>
+    fn stack_keys<I, S>(&self, list: I) -> Result<BTreeSet<String>, String>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        // First list all the desired stacks. Use an ordered set here so results
-        // are stable.
+        // Use an ordered set here so results are stable.
         let mut keys: BTreeSet<String> = BTreeSet::new();
 
         for key in list {
@@ -189,13 +211,40 @@ impl Config {
 
         // An empty initial list means we want all stacks.
         if keys.is_empty() {
-            keys = self.stacks.keys().map(|k| k.to_owned()).collect();
-        } else if with_dependencies {
-            // Add all dependencies if needed.
-            if with_dependencies {
-                for key in keys.clone().iter() {
-                    add_deps(&self.stacks, key, &mut keys);
-                }
+            Ok(self.stacks.keys().cloned().collect())
+        } else {
+            Ok(keys)
+        }
+    }
+
+    fn stacks_from_known_keys<I>(&self, keys: I) -> Vec<&Stack>
+    where
+        I: IntoIterator<Item = String>,
+    {
+        keys.into_iter()
+            .map(|k| self.stacks.get(&k).unwrap())
+            .collect()
+    }
+
+    pub fn from_reader<R: Read>(base_dir: &Path, reader: R) -> Result<Self, String> {
+        let mut config: Config = serde_yaml::from_reader(reader).map_err(|e| e.to_string())?;
+        config.base_dir = base_dir.to_owned();
+        Ok(config)
+    }
+
+    pub fn stacks_with_dependencies<I, S>(&self, list: I) -> Result<Vec<&Stack>, String>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        // First list all the desired stacks. Use an ordered set here so results
+        // are stable.
+        let mut keys = self.stack_keys(list)?;
+
+        // Add all dependencies if needed.
+        if keys.len() < self.stacks.len() {
+            for key in keys.clone().iter() {
+                add_dependencies(&self.stacks, key, &mut keys);
             }
         }
 
@@ -212,11 +261,55 @@ impl Config {
 
                 let stack = self.stacks.get(key).unwrap();
                 if stack
-                    .depends_on
+                    .dependencies
                     .iter()
                     .all(|dep: &String| added.contains(dep) || !keys.contains(dep))
                 {
                     // All dependencies we care about are resolved so this stack
+                    // can be added.
+                    stacks.push(stack);
+                    added.insert(key.to_owned());
+                }
+            }
+        }
+
+        Ok(stacks)
+    }
+
+    pub fn stacks_with_dependants<I, S>(&self, list: I) -> Result<Vec<&Stack>, String>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        // First list all the desired stacks. Use an ordered set here so results
+        // are stable.
+        let mut keys = self.stack_keys(list)?;
+
+        // Add all dependants if needed.
+        if keys.len() < self.stacks.len() {
+            for key in keys.clone().iter() {
+                add_dependants(&self.stacks, key, &mut keys);
+            }
+        }
+
+        // Now to order them in dependant order.
+        let mut added: HashSet<String> = HashSet::new();
+        let mut stacks = Vec::new();
+
+        while stacks.len() != keys.len() {
+            for key in keys.iter().rev() {
+                if added.contains(key) {
+                    // Already added this one.
+                    continue;
+                }
+
+                let stack = self.stacks.get(key).unwrap();
+                if stack
+                    .dependants
+                    .iter()
+                    .all(|dep: &String| added.contains(dep) || !keys.contains(dep))
+                {
+                    // All dependants we care about are resolved so this stack
                     // can be added.
                     stacks.insert(0, stack);
                     added.insert(key.to_owned());
@@ -225,6 +318,30 @@ impl Config {
         }
 
         Ok(stacks)
+    }
+
+    pub fn stacks<I, S>(&self, list: I) -> Result<Vec<&Stack>, String>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Ok(self.stacks_from_known_keys(self.stack_keys(list)?))
+    }
+
+    pub fn stack<I, S>(&self, list: I) -> Result<Vec<&Stack>, String>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let stacks = self.stacks(list)?;
+        if stacks.len() != 1 {
+            Err(format!(
+                "Only one stack can be used but {} were provided.",
+                stacks.len()
+            ))
+        } else {
+            Ok(stacks)
+        }
     }
 }
 
@@ -253,7 +370,7 @@ mod tests {
         )
         .unwrap();
 
-        let stacks = config.stacks(["foo", "bar"], false).unwrap();
+        let stacks = config.stacks(["foo", "bar"]).unwrap();
         assert_eq!(stacks.len(), 2);
         let stack = stacks.get(0).unwrap();
         assert_eq!(stack.name, "bar");
@@ -277,26 +394,38 @@ mod tests {
         )
         .unwrap();
         let list: [&str; 0] = [];
-        let stacks = keys(config.stacks(list, false).unwrap());
+        let stacks = keys(config.stacks(list).unwrap());
         assert_eq!(
             stacks,
-            vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
+            vec!["bar".to_string(), "baz".to_string(), "foo".to_string()]
         );
 
-        let stacks = keys(config.stacks(["bar"], false).unwrap());
+        let stacks = keys(config.stacks(["bar"]).unwrap());
         assert_eq!(stacks, vec!["bar".to_string()]);
 
-        let stacks = keys(config.stacks(["bar"], true).unwrap());
-        assert_eq!(stacks, vec!["bar".to_string(), "baz".to_string()]);
-
-        let stacks = keys(config.stacks(["foo"], true).unwrap());
+        let stacks = keys(config.stacks_with_dependencies(["baz"]).unwrap());
+        assert_eq!(stacks, vec!["baz".to_string()]);
+        let stacks = keys(config.stacks_with_dependants(["baz"]).unwrap());
         assert_eq!(
             stacks,
-            vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
+            vec!["baz".to_string(), "bar".to_string(), "foo".to_string()]
         );
 
+        let stacks = keys(config.stacks_with_dependencies(["bar"]).unwrap());
+        assert_eq!(stacks, vec!["baz".to_string(), "bar".to_string()]);
+        let stacks = keys(config.stacks_with_dependants(["bar"]).unwrap());
+        assert_eq!(stacks, vec!["bar".to_string(), "foo".to_string()]);
+
+        let stacks = keys(config.stacks_with_dependencies(["foo"]).unwrap());
         assert_eq!(
-            config.stacks(["bar", "biz"], false).err().unwrap(),
+            stacks,
+            vec!["baz".to_string(), "bar".to_string(), "foo".to_string()]
+        );
+        let stacks = keys(config.stacks_with_dependants(["foo"]).unwrap());
+        assert_eq!(stacks, vec!["foo".to_string()]);
+
+        assert_eq!(
+            config.stacks(["bar", "biz"]).err().unwrap(),
             "unknown stack \"biz\""
         );
 
@@ -371,18 +500,18 @@ mod tests {
             ",
         )
         .unwrap();
-        let stacks = keys(config.stacks(["foo"], true).unwrap());
+        let stacks = keys(config.stacks_with_dependencies(["foo"]).unwrap());
         assert_eq!(
             stacks,
             vec![
-                "foo".to_string(),
-                "bar".to_string(),
+                "baz".to_string(),
                 "biz".to_string(),
-                "baz".to_string()
+                "bar".to_string(),
+                "foo".to_string()
             ]
         );
 
-        let stacks = keys(config.stacks(["bar"], false).unwrap());
+        let stacks = keys(config.stacks(["bar"]).unwrap());
         assert_eq!(stacks, vec!["bar".to_string()]);
     }
 }
